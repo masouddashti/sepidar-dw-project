@@ -1,0 +1,16 @@
+# SQL Server
+*.mdf
+*.ldf
+*.bak
+
+# Logs / temp
+*.log
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
