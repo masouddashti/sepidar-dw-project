@@ -1,5 +1,31 @@
 # SEPIDAR Data Warehouse Project
 
+## 📋 ترتیب اجرای اسکریپت‌ها (مهم!)
+
+### مرحله 1: Setup (اجباری - اول اجرا شود)
+```sql
+-- 1. ایجاد دیتابیس و Schema‌ها
+00_Setup/01_Create_Database_Structure.sql
+
+-- 2. ایجاد جداول متادیتا
+00_Setup/02_Create_Metadata_Tables.sql
+
+-- 3. ایجاد پروسیجرهای Synonym
+00_Setup/03_Create_Synonym_Procedures.sql
+```
+
+### مرحله 2: Synonyms
+```sql
+-- 1. ایجاد Synonym‌ها (اسم دیتابیس رو تغییر بده!)
+02_Synonyms/01_Create_Synonyms_All.sql
+
+-- 2. پروسیجرهای کمکی
+02_Synonyms/02_Synonym_Utilities.sql
+
+-- 3. ثبت در TableMapping
+02_Synonyms/03_Populate_TableMapping.sql
+```
+
 ## پروژه انبار داده سپیدار
 
 ---

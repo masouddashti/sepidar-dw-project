@@ -28,7 +28,7 @@ BEGIN
     DECLARE @BaseObject NVARCHAR(500);
     DECLARE @SQL NVARCHAR(MAX);
     DECLARE @IsValid BIT;
-    DECLARE @RowCount INT;
+    DECLARE @RecordCount INT;
     DECLARE @ErrorMsg NVARCHAR(4000);
     
     -- Create temp results table
@@ -39,7 +39,7 @@ BEGIN
         SynonymName NVARCHAR(256),
         BaseObject NVARCHAR(500),
         IsValid BIT,
-        RowCount INT NULL,
+        RecordCount INT NULL,
         ErrorMessage NVARCHAR(4000) NULL
     );
     
@@ -57,18 +57,18 @@ BEGIN
     BEGIN
         BEGIN TRY
             SET @SQL = N'SELECT @cnt = COUNT(*) FROM src.' + QUOTENAME(@SynonymName);
-            EXEC sp_executesql @SQL, N'@cnt INT OUTPUT', @cnt = @RowCount OUTPUT;
+            EXEC sp_executesql @SQL, N'@cnt INT OUTPUT', @cnt = @RecordCount OUTPUT;
             SET @IsValid = 1;
             SET @ErrorMsg = NULL;
         END TRY
         BEGIN CATCH
             SET @IsValid = 0;
-            SET @RowCount = NULL;
+            SET @RecordCount = NULL;
             SET @ErrorMsg = ERROR_MESSAGE();
         END CATCH
         
         INSERT INTO #VerificationResults VALUES 
-            (@SynonymName, @BaseObject, @IsValid, @RowCount, @ErrorMsg);
+            (@SynonymName, @BaseObject, @IsValid, @RecordCount, @ErrorMsg);
         
         -- Update metadata
         UPDATE meta.SynonymRegistry 
@@ -87,7 +87,7 @@ BEGIN
         SynonymName,
         BaseObject,
         CASE WHEN IsValid = 1 THEN '✓ Valid' ELSE '✗ Invalid' END AS Status,
-        RowCount,
+        RecordCount,
         ErrorMessage
     FROM #VerificationResults
     ORDER BY IsValid, SynonymName;
@@ -97,7 +97,7 @@ BEGIN
         COUNT(*) AS TotalSynonyms,
         SUM(CASE WHEN IsValid = 1 THEN 1 ELSE 0 END) AS ValidCount,
         SUM(CASE WHEN IsValid = 0 THEN 1 ELSE 0 END) AS InvalidCount,
-        SUM(ISNULL(RowCount, 0)) AS TotalRows
+        SUM(ISNULL(RecordCount, 0)) AS TotalRows
     FROM #VerificationResults;
     
     DROP TABLE #VerificationResults;
@@ -121,7 +121,7 @@ BEGIN
     
     DECLARE @SynonymName NVARCHAR(256);
     DECLARE @SQL NVARCHAR(MAX);
-    DECLARE @RowCount INT;
+    DECLARE @RecordCount INT;
     
     -- Create temp results table
     IF OBJECT_ID('tempdb..#RowCounts') IS NOT NULL
@@ -130,7 +130,7 @@ BEGIN
     CREATE TABLE #RowCounts (
         SynonymName NVARCHAR(256),
         TargetTable NVARCHAR(256),
-        RowCount INT,
+        RecordCount INT,
         ModuleCode VARCHAR(10)
     );
     
@@ -155,14 +155,14 @@ BEGIN
     BEGIN
         BEGIN TRY
             SET @SQL = N'SELECT @cnt = COUNT(*) FROM src.' + QUOTENAME(@SynonymName);
-            EXEC sp_executesql @SQL, N'@cnt INT OUTPUT', @cnt = @RowCount OUTPUT;
+            EXEC sp_executesql @SQL, N'@cnt INT OUTPUT', @cnt = @RecordCount OUTPUT;
         END TRY
         BEGIN CATCH
-            SET @RowCount = -1;  -- Indicates error
+            SET @RecordCount = -1;  -- Indicates error
         END CATCH
         
-        INSERT INTO #RowCounts (SynonymName, TargetTable, RowCount, ModuleCode)
-        SELECT @SynonymName, @SQL, @RowCount, @ModuleCode;
+        INSERT INTO #RowCounts (SynonymName, TargetTable, RecordCount, ModuleCode)
+        SELECT @SynonymName, @SQL, @RecordCount, @ModuleCode;
         
         FETCH NEXT FROM syn_cursor INTO @SynonymName, @SQL, @ModuleCode;
     END
@@ -175,22 +175,22 @@ BEGIN
         ModuleCode,
         SynonymName,
         TargetTable,
-        RowCount,
+        RecordCount,
         CASE 
-            WHEN RowCount = 0 THEN 'Empty'
-            WHEN RowCount < 100 THEN 'Small'
-            WHEN RowCount < 10000 THEN 'Medium'
+            WHEN RecordCount = 0 THEN 'Empty'
+            WHEN RecordCount < 100 THEN 'Small'
+            WHEN RecordCount < 10000 THEN 'Medium'
             ELSE 'Large'
         END AS SizeCategory
     FROM #RowCounts
-    ORDER BY ModuleCode, RowCount DESC;
+    ORDER BY ModuleCode, RecordCount DESC;
     
     -- Summary by module
     SELECT 
         ModuleCode,
         COUNT(*) AS TableCount,
-        SUM(CASE WHEN RowCount > 0 THEN 1 ELSE 0 END) AS TablesWithData,
-        SUM(RowCount) AS TotalRows
+        SUM(CASE WHEN RecordCount > 0 THEN 1 ELSE 0 END) AS TablesWithData,
+        SUM(RecordCount) AS TotalRows
     FROM #RowCounts
     GROUP BY ModuleCode
     ORDER BY ModuleCode;
