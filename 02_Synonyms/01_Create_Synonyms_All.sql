@@ -338,27 +338,29 @@ PRINT '';
 PRINT 'Registering synonyms in metadata...';
 
 -- Clear existing entries for src schema
-DELETE FROM meta.SynonymRegistry WHERE SchemaName = 'src';
+DELETE FROM meta.SynonymRegistry WHERE SynonymSchema = 'src';
 
 -- Insert new entries
 INSERT INTO meta.SynonymRegistry (
+    SynonymSchema,
     SynonymName,
-    SchemaName,
     TargetServer,
     TargetDatabase,
     TargetSchema,
-    TargetTable,
+    TargetObject,
+    ObjectType,
     IsActive,
     CreatedDate,
     LastVerifiedDate
 )
 SELECT 
-    REPLACE(SynonymName, 'src.', ''),
     'src',
+    REPLACE(SynonymName, 'src.', ''),
     @SourceServer,
     @SourceDB,
     'dbo',
     SourceTable,
+    'TABLE',
     CASE WHEN IsProcessed = 1 THEN 1 ELSE 0 END,
     GETDATE(),
     CASE WHEN IsProcessed = 1 THEN GETDATE() ELSE NULL END
