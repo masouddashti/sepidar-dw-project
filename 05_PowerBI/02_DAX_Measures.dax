@@ -1,0 +1,582 @@
+// ================================================================================
+// SEPIDAR Data Warehouse - DAX Measures
+// ================================================================================
+// Copy these measures into Power BI
+// نسخه: 1.0
+// تاریخ: January 2026
+// ================================================================================
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 1: مالی - Financial (GL Transaction)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// مجموع بدهکار
+Total Debit = 
+SUM('fact.GLTransaction'[Debit])
+
+// مجموع بستانکار
+Total Credit = 
+SUM('fact.GLTransaction'[Credit])
+
+// مانده (بدهکار - بستانکار)
+Balance = 
+[Total Debit] - [Total Credit]
+
+// مانده بدهکار
+Debit Balance = 
+IF([Balance] > 0, [Balance], 0)
+
+// مانده بستانکار
+Credit Balance = 
+IF([Balance] < 0, -[Balance], 0)
+
+// تعداد اسناد حسابداری
+Voucher Count = 
+DISTINCTCOUNT('fact.GLTransaction'[VoucherId])
+
+// تعداد آرتیکل‌ها
+Article Count = 
+COUNTROWS('fact.GLTransaction')
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 2: فروش - Sales
+// ════════════════════════════════════════════════════════════════════════════════
+
+// فروش ناخالص
+Gross Sales = 
+SUM('fact.Sales'[GrossAmount])
+
+// تخفیفات فروش
+Sales Discount = 
+SUM('fact.Sales'[DiscountAmount])
+
+// فروش خالص
+Net Sales = 
+SUM('fact.Sales'[NetAmount])
+
+// مالیات فروش
+Sales Tax = 
+SUM('fact.Sales'[TaxAmount])
+
+// عوارض فروش
+Sales Duty = 
+SUM('fact.Sales'[DutyAmount])
+
+// تعداد فاکتور
+Invoice Count = 
+DISTINCTCOUNT('fact.Sales'[InvoiceId])
+
+// تعداد ردیف فروش
+Sales Lines = 
+COUNTROWS('fact.Sales')
+
+// تعداد کالای فروخته شده
+Items Sold = 
+SUM('fact.Sales'[Quantity])
+
+// میانگین ارزش فاکتور
+Avg Invoice Value = 
+DIVIDE([Net Sales], [Invoice Count], 0)
+
+// تعداد مشتریان فعال
+Active Customers = 
+DISTINCTCOUNT('fact.Sales'[CustomerKey])
+
+// درصد تخفیف
+Discount Pct = 
+DIVIDE([Sales Discount], [Gross Sales], 0)
+
+// فروش به ازای هر مشتری
+Sales Per Customer = 
+DIVIDE([Net Sales], [Active Customers], 0)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 3: انبار - Inventory
+// ════════════════════════════════════════════════════════════════════════════════
+
+// موجودی مقداری (رسید - حواله)
+Stock Qty = 
+SUM('fact.Inventory'[Quantity])
+
+// ارزش موجودی
+Stock Value = 
+SUM('fact.Inventory'[Amount])
+
+// مقدار رسید
+Receipt Qty = 
+CALCULATE(
+    SUM('fact.Inventory'[AbsQuantity]),
+    'fact.Inventory'[MovementType] = "Receipt"
+)
+
+// مبلغ رسید
+Receipt Amount = 
+CALCULATE(
+    SUM('fact.Inventory'[NetAmount]),
+    'fact.Inventory'[MovementType] = "Receipt",
+    'fact.Inventory'[MovementSign] = 1
+)
+
+// مقدار حواله
+Delivery Qty = 
+CALCULATE(
+    SUM('fact.Inventory'[AbsQuantity]),
+    'fact.Inventory'[MovementType] = "Delivery"
+)
+
+// مبلغ حواله
+Delivery Amount = 
+CALCULATE(
+    -SUM('fact.Inventory'[NetAmount]),
+    'fact.Inventory'[MovementType] = "Delivery",
+    'fact.Inventory'[MovementSign] = -1
+)
+
+// تعداد رسید انبار
+Receipt Doc Count = 
+CALCULATE(
+    DISTINCTCOUNT('fact.Inventory'[DocumentId]),
+    'fact.Inventory'[MovementType] = "Receipt"
+)
+
+// تعداد حواله انبار
+Delivery Doc Count = 
+CALCULATE(
+    DISTINCTCOUNT('fact.Inventory'[DocumentId]),
+    'fact.Inventory'[MovementType] = "Delivery"
+)
+
+// نرخ گردش موجودی
+Inventory Turnover = 
+DIVIDE([Delivery Qty], [Stock Qty], 0)
+
+// تعداد کالاهای دارای موجودی
+Items In Stock = 
+CALCULATE(
+    DISTINCTCOUNT('fact.Inventory'[ItemKey]),
+    [Stock Qty] > 0
+)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 4: جریان نقدی - Cash Flow
+// ════════════════════════════════════════════════════════════════════════════════
+
+// جریان نقدی خالص
+Net Cash Flow = 
+SUM('fact.CashFlow'[Amount])
+
+// کل دریافت‌ها
+Total Receipts = 
+CALCULATE(
+    SUM('fact.CashFlow'[AbsAmount]),
+    'fact.CashFlow'[FlowType] = "Receipt"
+)
+
+// کل پرداخت‌ها
+Total Payments = 
+CALCULATE(
+    SUM('fact.CashFlow'[AbsAmount]),
+    'fact.CashFlow'[FlowType] = "Payment"
+)
+
+// دریافت نقدی
+Cash Receipts = 
+CALCULATE(
+    SUM('fact.CashFlow'[AbsAmount]),
+    'fact.CashFlow'[FlowType] = "Receipt",
+    'fact.CashFlow'[ItemType] = 0
+)
+
+// پرداخت نقدی
+Cash Payments = 
+CALCULATE(
+    SUM('fact.CashFlow'[AbsAmount]),
+    'fact.CashFlow'[FlowType] = "Payment",
+    'fact.CashFlow'[ItemType] = 0
+)
+
+// دریافت کارتی
+Card Receipts = 
+CALCULATE(
+    SUM('fact.CashFlow'[AbsAmount]),
+    'fact.CashFlow'[FlowType] = "Receipt",
+    'fact.CashFlow'[ItemType] = 2
+)
+
+// پرداخت کارتی
+Card Payments = 
+CALCULATE(
+    SUM('fact.CashFlow'[AbsAmount]),
+    'fact.CashFlow'[FlowType] = "Payment",
+    'fact.CashFlow'[ItemType] = 2
+)
+
+// تعداد دریافت
+Receipt Count = 
+CALCULATE(
+    DISTINCTCOUNT('fact.CashFlow'[DocumentId]),
+    'fact.CashFlow'[FlowType] = "Receipt"
+)
+
+// تعداد پرداخت
+Payment Count = 
+CALCULATE(
+    DISTINCTCOUNT('fact.CashFlow'[DocumentId]),
+    'fact.CashFlow'[FlowType] = "Payment"
+)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 5: چک - Cheque
+// ════════════════════════════════════════════════════════════════════════════════
+
+// مانده چک (دریافتی - پرداختی)
+Net Cheque = 
+SUM('fact.Cheque'[Amount])
+
+// چک‌های دریافتی
+Receipt Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[ChequeType] = "Receipt"
+)
+
+// چک‌های پرداختی
+Payment Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[ChequeType] = "Payment"
+)
+
+// چک در جریان وصول
+Pending Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[ChequeType] = "Receipt",
+    'fact.Cheque'[ChequeState] = 0
+)
+
+// چک وصول شده
+Collected Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[ChequeType] = "Receipt",
+    'fact.Cheque'[ChequeState] = 1
+)
+
+// چک برگشتی
+Returned Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[ChequeState] = 2
+)
+
+// چک خرج شده (واگذار شده)
+Spent Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[ChequeType] = "Receipt",
+    'fact.Cheque'[ChequeState] = 3
+)
+
+// چک تضمینی
+Guarantee Cheques = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    'fact.Cheque'[IsGuarantee] = TRUE()
+)
+
+// تعداد چک دریافتی
+Receipt Cheque Count = 
+CALCULATE(
+    COUNTROWS('fact.Cheque'),
+    'fact.Cheque'[ChequeType] = "Receipt"
+)
+
+// تعداد چک پرداختی
+Payment Cheque Count = 
+CALCULATE(
+    COUNTROWS('fact.Cheque'),
+    'fact.Cheque'[ChequeType] = "Payment"
+)
+
+// تعداد چک برگشتی
+Returned Cheque Count = 
+CALCULATE(
+    COUNTROWS('fact.Cheque'),
+    'fact.Cheque'[ChequeState] = 2
+)
+
+// نرخ برگشت چک
+Cheque Return Rate = 
+DIVIDE([Returned Cheque Count], [Receipt Cheque Count], 0)
+
+// چک سررسید امروز (نیاز به USERELATIONSHIP)
+Cheques Due Today = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    USERELATIONSHIP('fact.Cheque'[DueDateKey], 'dim.Date'[DateKey]),
+    'dim.Date'[FullDate] = TODAY(),
+    'fact.Cheque'[ChequeState] = 0
+)
+
+// چک سررسید 7 روز آینده
+Cheques Due 7 Days = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    USERELATIONSHIP('fact.Cheque'[DueDateKey], 'dim.Date'[DateKey]),
+    'dim.Date'[FullDate] >= TODAY() && 'dim.Date'[FullDate] <= TODAY() + 7,
+    'fact.Cheque'[ChequeState] = 0
+)
+
+// چک سررسید 30 روز آینده
+Cheques Due 30 Days = 
+CALCULATE(
+    SUM('fact.Cheque'[AbsAmount]),
+    USERELATIONSHIP('fact.Cheque'[DueDateKey], 'dim.Date'[DateKey]),
+    'dim.Date'[FullDate] >= TODAY() && 'dim.Date'[FullDate] <= TODAY() + 30,
+    'fact.Cheque'[ChequeState] = 0
+)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 6: Time Intelligence - میلادی
+// ════════════════════════════════════════════════════════════════════════════════
+
+// فروش ماه تا امروز
+Sales MTD = 
+TOTALMTD([Net Sales], 'dim.Date'[FullDate])
+
+// فروش فصل تا امروز
+Sales QTD = 
+TOTALQTD([Net Sales], 'dim.Date'[FullDate])
+
+// فروش سال تا امروز
+Sales YTD = 
+TOTALYTD([Net Sales], 'dim.Date'[FullDate])
+
+// فروش ماه قبل
+Sales PM = 
+CALCULATE(
+    [Net Sales],
+    PREVIOUSMONTH('dim.Date'[FullDate])
+)
+
+// فروش فصل قبل
+Sales PQ = 
+CALCULATE(
+    [Net Sales],
+    PREVIOUSQUARTER('dim.Date'[FullDate])
+)
+
+// فروش سال قبل
+Sales PY = 
+CALCULATE(
+    [Net Sales],
+    SAMEPERIODLASTYEAR('dim.Date'[FullDate])
+)
+
+// رشد ماهانه فروش
+Sales MoM Growth = 
+VAR CurrentSales = [Net Sales]
+VAR PrevSales = [Sales PM]
+RETURN
+DIVIDE(CurrentSales - PrevSales, PrevSales, 0)
+
+// رشد سالانه فروش
+Sales YoY Growth = 
+VAR CurrentSales = [Net Sales]
+VAR PrevSales = [Sales PY]
+RETURN
+DIVIDE(CurrentSales - PrevSales, PrevSales, 0)
+
+// میانگین متحرک 3 ماهه
+Sales 3M Moving Avg = 
+AVERAGEX(
+    DATESINPERIOD('dim.Date'[FullDate], MAX('dim.Date'[FullDate]), -3, MONTH),
+    [Net Sales]
+)
+
+// فروش تجمعی
+Sales Running Total = 
+CALCULATE(
+    [Net Sales],
+    FILTER(
+        ALL('dim.Date'),
+        'dim.Date'[FullDate] <= MAX('dim.Date'[FullDate])
+    )
+)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 7: Time Intelligence - شمسی (Jalali)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// فروش ماه شمسی جاری
+Sales JMonth Current = 
+VAR CurrentJYear = MAX('dim.Date'[JYear])
+VAR CurrentJMonth = MAX('dim.Date'[JMonth])
+RETURN
+CALCULATE(
+    [Net Sales],
+    FILTER(
+        ALL('dim.Date'),
+        'dim.Date'[JYear] = CurrentJYear &&
+        'dim.Date'[JMonth] = CurrentJMonth
+    )
+)
+
+// فروش ماه شمسی قبل
+Sales JMonth Previous = 
+VAR CurrentJYear = MAX('dim.Date'[JYear])
+VAR CurrentJMonth = MAX('dim.Date'[JMonth])
+VAR PrevJMonth = IF(CurrentJMonth = 1, 12, CurrentJMonth - 1)
+VAR PrevJYear = IF(CurrentJMonth = 1, CurrentJYear - 1, CurrentJYear)
+RETURN
+CALCULATE(
+    [Net Sales],
+    FILTER(
+        ALL('dim.Date'),
+        'dim.Date'[JYear] = PrevJYear &&
+        'dim.Date'[JMonth] = PrevJMonth
+    )
+)
+
+// فروش سال شمسی جاری
+Sales JYear Current = 
+VAR CurrentJYear = MAX('dim.Date'[JYear])
+RETURN
+CALCULATE(
+    [Net Sales],
+    FILTER(
+        ALL('dim.Date'),
+        'dim.Date'[JYear] = CurrentJYear
+    )
+)
+
+// فروش سال شمسی قبل
+Sales JYear Previous = 
+VAR CurrentJYear = MAX('dim.Date'[JYear])
+RETURN
+CALCULATE(
+    [Net Sales],
+    FILTER(
+        ALL('dim.Date'),
+        'dim.Date'[JYear] = CurrentJYear - 1
+    )
+)
+
+// فروش فصل شمسی جاری
+Sales JQuarter Current = 
+VAR CurrentJYear = MAX('dim.Date'[JYear])
+VAR CurrentJQuarter = MAX('dim.Date'[JQuarter])
+RETURN
+CALCULATE(
+    [Net Sales],
+    FILTER(
+        ALL('dim.Date'),
+        'dim.Date'[JYear] = CurrentJYear &&
+        'dim.Date'[JQuarter] = CurrentJQuarter
+    )
+)
+
+// رشد ماهانه شمسی
+Sales JMonth Growth = 
+DIVIDE(
+    [Sales JMonth Current] - [Sales JMonth Previous],
+    [Sales JMonth Previous],
+    0
+)
+
+// رشد سالانه شمسی
+Sales JYear Growth = 
+DIVIDE(
+    [Sales JYear Current] - [Sales JYear Previous],
+    [Sales JYear Previous],
+    0
+)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 8: KPI و شاخص‌های ترکیبی
+// ════════════════════════════════════════════════════════════════════════════════
+
+// نسبت جاری (Current Ratio) - نیاز به تعریف حساب‌های جاری
+Current Ratio = 
+VAR CurrentAssets = 
+    CALCULATE([Balance], 'dim.Account'[L1_Title] = "داراییهای جاری")
+VAR CurrentLiabilities = 
+    CALCULATE(-[Balance], 'dim.Account'[L1_Title] = "بدهیهای جاری")
+RETURN
+DIVIDE(CurrentAssets, CurrentLiabilities, 0)
+
+// روز گردش موجودی (Days Inventory Outstanding)
+DIO = 
+VAR AvgInventory = AVERAGE('fact.Inventory'[Amount])
+VAR COGS = [Delivery Amount]  // تقریبی
+RETURN
+DIVIDE(AvgInventory * 365, COGS, 0)
+
+// روز وصول مطالبات (Days Sales Outstanding)
+DSO = 
+VAR AvgReceivables = 
+    CALCULATE([Balance], 'dim.Account'[Title] = "حسابهای دریافتنی")
+VAR NetSales = [Net Sales]
+RETURN
+DIVIDE(AvgReceivables * 365, NetSales, 0)
+
+// ارزش هر مشتری
+Customer Value = 
+DIVIDE([Net Sales], [Active Customers], 0)
+
+// نرخ تبدیل (Conversion Rate) - اگر داده پیش‌فاکتور موجود باشد
+// Conversion Rate = 
+// DIVIDE([Invoice Count], [Quotation Count], 0)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SECTION 9: Formatting Measures (برای نمایش)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// فروش با فرمت
+Net Sales Formatted = 
+VAR Sales = [Net Sales]
+RETURN
+IF(
+    Sales >= 1000000000,
+    FORMAT(Sales / 1000000000, "#,##0.0") & " میلیارد",
+    IF(
+        Sales >= 1000000,
+        FORMAT(Sales / 1000000, "#,##0.0") & " میلیون",
+        FORMAT(Sales, "#,##0")
+    )
+)
+
+// درصد رشد با آیکون
+Sales Growth Icon = 
+VAR Growth = [Sales MoM Growth]
+RETURN
+IF(
+    Growth > 0.05, "▲ " & FORMAT(Growth, "0.0%"),
+    IF(
+        Growth < -0.05, "▼ " & FORMAT(Growth, "0.0%"),
+        "► " & FORMAT(Growth, "0.0%")
+    )
+)
+
+// وضعیت موجودی
+Stock Status = 
+VAR Qty = [Stock Qty]
+RETURN
+IF(Qty > 100, "🟢 موجود",
+    IF(Qty > 0, "🟡 کم", "🔴 ناموجود")
+)
+
+
+// ════════════════════════════════════════════════════════════════════════════════
+// END OF DAX MEASURES
+// ════════════════════════════════════════════════════════════════════════════════
